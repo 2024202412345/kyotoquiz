@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>京都クイズ</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+            position: relative;
+            overflow-x: hidden; /* 横方向のスクロールを防ぐ */
+        }
+        .quiz-container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+        }
+        #question-text {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        #feedback-text {
+            font-size: 1.5em;
+            font-weight: bold;
+            height: 1.5em;
+            margin-bottom: 10px;
+        }
+        #question-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            gap: 10px; /* ボタン間の隙間を追加 */
+        }
+        .options button {
+            padding: 20px;
+            margin: 0; /* マージンをリセット */
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            color: white;
+            font-size: 2.5em; /* ボタン内の文字を大きく */
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #option-maru {
+            background-color: #4CAF50;
+        }
+        #option-batsu {
+            background-color: #f44336;
+        }
+        #option-maru:hover {
+            background-color: #45a049;
+        }
+        #option-batsu:hover {
+            background-color: #da190b;
+        }
+        #result-area {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        #score-text, #high-score-text {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .hidden {
+            display: none;
+        }
+
+        .confetti {
+            position: absolute;
+            background-color: #f00; /* デフォルトの色 */
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotateZ(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotateZ(720deg);
+            }
+        }
+        .menu-buttons {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .menu-buttons button {
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+        }
+        .menu-buttons button svg {
+            width: 100%;
+            height: 100%;
+        }
+        .menu-buttons button#restart-button {
+            font-size: 2.5em;
+            color: #b2b2b2;
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1>京都クイズ</h1>
+        <div id="quiz-area">
+            <img id="question-image" src="" alt="質問の画像">
+            <p id="question-text"></p>
+            <p id="feedback-text"></p>
+            <div class="options">
+                <button id="option-maru">〇</button>
+                <button id="option-batsu">✕</button>
+            </div>
+        </div>
+        <div id="result-area" class="hidden">
+            <h2 id="result-title"></h2>
+            <p id="score-text"></p>
+            <p id="high-score-text"></p>
+        </div>
+    </div>
+    <div class="menu-buttons">
+        <button id="restart-button">⟳</button>
+        <button id="lang-ja">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <rect width="200" height="200" fill="#fff"/>
+                <circle cx="100" cy="100" r="40" fill="#bc002d"/>
+            </svg>
+        </button>
+        <button id="lang-en">
+            <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+                <rect width="300" height="300" fill="#012169"/>
+                <path d="M0,0 L300,300 M300,0 L0,300" stroke="#fff" stroke-width="30"/>
+                <path d="M0,0 L300,300 M300,0 L0,300" stroke="#c8102e" stroke-width="18"/>
+                <path d="M150,0 V300 M0,150 H300" stroke="#fff" stroke-width="50"/>
+                <path d="M150,0 V300 M0,150 H300" stroke="#c8102e" stroke-width="30"/>
+            </svg>
+        </button>
+    </div>
+    <script>
+        // 画像を生成するためのユーティリティ関数
+        function generateImageBase64(text, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 500;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            
+            // 背景色を設定
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // テキストを設定
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 60px Arial';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            return canvas.toDataURL('image/png');
+        }
+
+        const uiText = {
+            ja: {
+                title: '京都クイズ',
+                questionPrefix: '第',
+                feedbackCorrect: '正解！',
+                feedbackIncorrect: '不正解…',
+                resultTitle: 'クイズ終了！',
+                scoreText: 'あなたのスコアは',
+                highScoreText: '最高スコア:',
+                highScoreUpdate: '🎉 ハイスコア更新！おめでとう！ 🎉',
+                perfectScore: '💯 満点です！素晴らしい！ 💯'
+            },
+            en: {
+                title: 'Kyoto Quiz',
+                questionPrefix: 'Question ',
+                feedbackCorrect: 'Correct!',
+                feedbackIncorrect: 'Incorrect...',
+                resultTitle: 'Quiz Finished!',
+                scoreText: 'Your score is',
+                highScoreText: 'High Score:',
+                highScoreUpdate: '🎉 New High Score! Congratulations! 🎉',
+                perfectScore: '💯 Perfect Score! Amazing! 💯'
+            }
+        };
+
+        const questionsCSV = {
+            ja: `question,answer,is_any_answer_correct,image_text,image_color
+京都では未だに伝統的なろうそくを使用している,true,true,CANDLE,#ffc107
+京都ではアフリカの国境やチェスの盤面のような直線的な道路が引かれている,true,false,STREET,#696969
+京都タワーは、東京タワーより高い。,false,false,KYOTO TOWER,#880d19
+京都には「清水寺」という寺がある。,true,false,KIYOMIZU-DERA,#f5e56b
+金閣寺は、正式には鹿苑寺という。,true,false,KINKAKU-JI,#3d824d
+京都の祇園祭は、日本三大祭の一つである。,true,false,GION MATSURI,#b0c8d1
+伏見稲荷大社の鳥居は、全て赤い色をしている。,false,false,FUSHIMI INARI,#000000
+京都には「嵐山」という有名な観光地がある。,true,false,ARASHIYAMA,#243d41
+アフリカゾウの鼻とキリンの首の長さは同じぐらいか,true,false,EXTREME QUIZ,#4e9a06
+地球は球体か,true,true,EXTREME QUIZ,#1b5e20
+`,
+            en: `question,answer,is_any_answer_correct,image_text,image_color
+Do people in Kyoto still use traditional candles?,true,true,CANDLE,#ffc107
+Are there straight roads in Kyoto like the borders of Africa or a chess board?,true,false,STREET,#696969
+Is Kyoto Tower taller than Tokyo Tower?,false,false,KYOTO TOWER,#880d19
+Is there a temple called 'Kiyomizu-dera' in Kyoto?,true,false,KIYOMIZU-DERA,#f5e56b
+Is Kinkaku-ji's official name Rokuon-ji?,true,false,KINKAKU-JI,#3d824d
+Is Kyoto's Gion Festival one of Japan's three major festivals?,true,false,GION MATSURI,#b0c8d1
+Are all the torii gates at Fushimi Inari Shrine red?,false,false,FUSHIMI INARI,#000000
+Is there a famous sightseeing spot called 'Arashiyama' in Kyoto?,true,false,ARASHIYAMA,#243d41
+Is the length of an African elephant's trunk and a giraffe's neck about the same?,true,false,EXTREME QUIZ,#4e9a06
+Is the Earth a sphere?,true,true,EXTREME QUIZ,#1b5e20
+`
+        };
+
+        let allQuestions = [];
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let currentLanguage = 'ja';
+        const totalQuestions = 10;
+        const pointsPerQuestion = 10;
+        const correctColor = '#4CAF50';
+        const incorrectColor = '#f44336';
+        const maruButtonDefaultColor = '#4CAF50';
+        const batsuButtonDefaultColor = '#f44336';
+
+        const quizArea = document.getElementById('quiz-area');
+        const questionImageElement = document.getElementById('question-image');
+        const questionTextElement = document.getElementById('question-text');
+        const feedbackTextElement = document.getElementById('feedback-text');
+        const optionMaruButton = document.getElementById('option-maru');
+        const optionBatsuButton = document.getElementById('option-batsu');
+        const resultArea = document.getElementById('result-area');
+        const resultTitleElement = document.getElementById('result-title');
+        const scoreTextElement = document.getElementById('score-text');
+        const highScoreTextElement = document.getElementById('high-score-text');
+        const langJaButton = document.getElementById('lang-ja');
+        const langEnButton = document.getElementById('lang-en');
+        const restartButton = document.getElementById('restart-button');
+
+        // CSV文字列をパースして配列に変換
+        function parseCSV(csvString) {
+            const lines = csvString.split('\n').filter(line => line.trim() !== '');
+            const headers = lines[0].split(',');
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                const obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    obj[headers[j].trim()] = values[j].trim();
+                }
+                obj.answer = obj.answer === 'true';
+                obj.is_any_answer_correct = obj.is_any_answer_correct === 'true';
+                data.push(obj);
+            }
+            return data;
+        }
+
+        // 配列をシャッフルして指定した数の問題を選択
+        function shuffleAndSelectQuestions(array, num) {
+            let newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray.slice(0, num);
+        }
+
+        // 紙吹雪を生成する関数
+        function createConfetti() {
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722', '#795548', '#9e9e9e', '#607d8b'];
+            for (let i = 0; i < 500; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                
+                // よりばらけるように、ランダムな幅とアニメーション期間を設定
+                const size = Math.random() * 8 + 5; // 5pxから13pxのランダムなサイズ
+                const duration = Math.random() * 5 + 8; // 8秒から13秒のランダムなアニメーション期間
+
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                confetti.style.left = `${Math.random() * 120 - 10}vw`; // 画面外からも発生するように
+                confetti.style.top = `${-Math.random() * 20}vh`; // 画面上部から発生
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `confetti-fall ${duration}s linear forwards`;
+                confetti.style.animationDelay = `${Math.random() * 2}s`; // 開始をずらしてばらけるように
+                document.body.appendChild(confetti);
+            }
+            setTimeout(() => {
+                document.querySelectorAll('.confetti').forEach(c => c.remove());
+            }, 10000); // 10秒後に削除
+        }
+
+        // 言語を切り替える関数
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+            document.querySelector('h1').textContent = uiText[lang].title;
+            // 他のUIテキストもここで更新可能
+            startQuiz();
+        }
+
+        // クイズ開始
+        function startQuiz() {
+            allQuestions = parseCSV(questionsCSV[currentLanguage]);
+            currentQuestions = shuffleAndSelectQuestions(allQuestions, totalQuestions);
+            currentQuestionIndex = 0;
+            score = 0;
+            quizArea.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            showQuestion();
+        }
+
+        // 問題を表示
+        function showQuestion() {
+            if (currentQuestionIndex < currentQuestions.length) {
+                optionMaruButton.style.backgroundColor = maruButtonDefaultColor;
+                optionBatsuButton.style.backgroundColor = batsuButtonDefaultColor;
+                feedbackTextElement.textContent = '';
+                const question = currentQuestions[currentQuestionIndex];
+                questionImageElement.src = generateImageBase64(question.image_text, question.image_color);
+                questionTextElement.textContent = `${uiText[currentLanguage].questionPrefix}${currentQuestionIndex + 1}: ${question.question}`;
+                optionMaruButton.disabled = false;
+                optionBatsuButton.disabled = false;
+            } else {
+                showResult();
+            }
+        }
+
+        // 回答をチェック
+        function checkAnswer(userAnswer) {
+            const question = currentQuestions[currentQuestionIndex];
+            optionMaruButton.disabled = true;
+            optionBatsuButton.disabled = true;
+            
+            const isCorrect = question.is_any_answer_correct || (userAnswer === question.answer);
+
+            if (isCorrect) {
+                score += pointsPerQuestion;
+                feedbackTextElement.textContent = uiText[currentLanguage].feedbackCorrect;
+                feedbackTextElement.style.color = correctColor;
+                if (question.is_any_answer_correct) {
+                    optionMaruButton.style.backgroundColor = correctColor;
+                    optionBatsuButton.style.backgroundColor = correctColor;
+                } else if (userAnswer) {
+                    optionMaruButton.style.backgroundColor = correctColor;
+                } else {
+                    optionBatsuButton.style.backgroundColor = correctColor;
+                }
+            } else {
+                feedbackTextElement.textContent = uiText[currentLanguage].feedbackIncorrect;
+                feedbackTextElement.style.color = incorrectColor;
+                if (userAnswer) {
+                    optionMaruButton.style.backgroundColor = incorrectColor;
+                    optionBatsuButton.style.backgroundColor = correctColor;
+                } else {
+                    optionBatsuButton.style.backgroundColor = incorrectColor;
+                    optionMaruButton.style.backgroundColor = correctColor;
+                }
+            }
+
+            currentQuestionIndex++;
+            setTimeout(() => {
+                showQuestion();
+            }, 500);
+        }
+
+        // スコアを表示してクイズを終了
+        function showResult() {
+            quizArea.classList.add('hidden');
+            resultArea.classList.remove('hidden');
+            
+            let highScore = localStorage.getItem('quizHighScore') || 0;
+            let specialMessage = '';
+
+            // スコアがハイスコアを更新した場合
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('quizHighScore', highScore);
+                specialMessage = uiText[currentLanguage].highScoreUpdate;
+            }
+
+            // スコアが60点を超えた場合
+            if (score > 60) {
+                createConfetti();
+            }
+
+            // スコアが満点の場合
+            if (score === totalQuestions * pointsPerQuestion) {
+                specialMessage = uiText[currentLanguage].perfectScore;
+                createConfetti();
+            }
+
+            resultTitleElement.textContent = specialMessage || uiText[currentLanguage].resultTitle;
+            scoreTextElement.textContent = `${uiText[currentLanguage].scoreText} ${score} 点です！`;
+            highScoreTextElement.textContent = `${uiText[currentLanguage].highScoreText} ${highScore} 点`;
+        }
+
+        // イベントリスナーの設定
+        optionMaruButton.addEventListener('click', () => checkAnswer(true));
+        optionBatsuButton.addEventListener('click', () => checkAnswer(false));
+        restartButton.addEventListener('click', startQuiz);
+        langJaButton.addEventListener('click', () => switchLanguage('ja'));
+        langEnButton.addEventListener('click', () => switchLanguage('en'));
+
+        // ページのロード時にクイズを開始
+        window.onload = startQuiz;
+    </script>
+</body>
+</html>
